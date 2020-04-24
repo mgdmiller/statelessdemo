@@ -88,6 +88,7 @@ namespace Demo.StateLess.App
             _machine.Configure(State.Pending)
                 .OnEntry(OnEntry)
                 .OnEntryAsync(() => SendPayloadToService(_url))
+                .OnEntryFrom(_rejectTrigger, exception => Console.WriteLine("Delivery error: {0}", exception.Message))
                 .OnActivate(OnActivate)
                 .Permit(Trigger.Fail, State.Failed)
                 .Permit(Trigger.Complete, State.Completed)
@@ -156,7 +157,14 @@ namespace Demo.StateLess.App
         {
             try
             {
-                Console.WriteLine("Sending payload to service: {0}", serviceUrl);
+                Console.WriteLine("[{0}]Sending payload to service: {1}", _retry, serviceUrl);
+
+                if (_retry > 0)
+                {
+                    var timeout = 1000 * _retry;
+                    Console.WriteLine("Delaying delivery for {0} second", _retry);
+                    await Task.Delay(timeout);
+                }
 
                 using (var client = new HttpClient())
                 {
